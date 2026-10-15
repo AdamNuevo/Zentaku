@@ -2,6 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ApiError } from "@/components/ApiError";
+import { WatchlistButton } from "@/components/WatchlistButton";
+import { OfficialStreams } from "@/components/OfficialStreams";
 import { animeIdFromParam, animeWatchHref } from "@/lib/anime-path";
 import { streamingPosterUnoptimized } from "@/lib/image-url";
 import { animeKaiInfo, AnimeKaiError } from "@/lib/animekai";
@@ -14,9 +16,9 @@ export async function generateMetadata({ params }: Props) {
   if (!slug) return { title: "Anime" };
   try {
     const anime = await animeKaiInfo(slug);
-    return { title: anime.title };
+    return { title: `${anime.title} — Zentaku` };
   } catch {
-    return { title: "Anime" };
+    return { title: "Anime — Zentaku" };
   }
 }
 
@@ -30,7 +32,7 @@ export default async function AnimeDetailPage({ params }: Props) {
     anime = await animeKaiInfo(slug);
   } catch (err) {
     if (err instanceof AnimeKaiError && err.status === 404) notFound();
-    const message = err instanceof AnimeKaiError ? err.message : "Failed to load anime.";
+    const message = err instanceof AnimeKaiError ? err.message : "Unable to load anime details.";
     const status = err instanceof AnimeKaiError ? err.status : undefined;
     return (
       <div className="mx-auto max-w-lg px-4 py-16">
@@ -46,106 +48,168 @@ export default async function AnimeDetailPage({ params }: Props) {
   const synopsis =
     anime.description?.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() || "";
 
+  const episodes = anime.episodes || [];
+
   return (
-    <main className="mx-auto max-w-[1200px] px-4 py-12 lg:px-8">
-      {/* Anime Info Section */}
-      <div className="flex flex-col gap-10 md:flex-row md:items-start">
-        {/* Poster Container */}
-        <div className="mx-auto w-full max-w-[280px] shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-surface shadow-2xl glow-red md:mx-0">
-          <div className="relative aspect-[2/3] w-full">
+    <main className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6 lg:px-8">
+      
+      {/* Breadcrumbs */}
+      <nav className="mb-6 flex items-center gap-2 text-xs text-muted">
+        <Link href="/" className="hover:text-foreground">Home</Link>
+        <span>/</span>
+        <Link href="/browse?type=anime" className="hover:text-foreground">Anime</Link>
+        <span>/</span>
+        <span className="text-foreground line-clamp-1 max-w-[240px]">{title}</span>
+      </nav>
+
+      {/* Main Two-Column Media Database Header */}
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-12 lg:gap-10">
+        
+        {/* Left Column: Poster & Quick Specs */}
+        <div className="space-y-4 md:col-span-4 lg:col-span-3">
+          <div className="relative aspect-[2/3] w-full max-w-[220px] mx-auto md:max-w-none overflow-hidden rounded-lg border border-white/[0.08] bg-surface-2 shadow-sm">
             {poster ? (
               <Image
                 src={poster}
-                alt={title || "Anime Poster"}
+                alt={title}
                 fill
-                className="object-cover transition-transform duration-500 hover:scale-105"
-                sizes="(max-width: 768px) 100vw, 280px"
                 priority
+                loading="eager"
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 300px"
                 unoptimized={streamingPosterUnoptimized(poster)}
               />
             ) : (
-              <div className="h-full w-full bg-surface-2 flex items-center justify-center text-muted">No Image</div>
+              <div className="flex h-full w-full items-center justify-center text-xs text-muted">
+                No Poster Artwork
+              </div>
             )}
+          </div>
+
+          {/* Quick specs box */}
+          <div className="rounded-lg border border-white/[0.06] bg-surface p-3.5 space-y-2.5 text-xs">
+            <div className="flex justify-between py-1 border-b border-white/[0.04]">
+              <span className="text-muted">Format</span>
+              <span className="font-medium text-foreground">{anime.type || "TV Series"}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-white/[0.04]">
+              <span className="text-muted">Status</span>
+              <span className={`font-medium ${anime.status?.toLowerCase() === "completed" ? "text-emerald-400" : "text-foreground"}`}>
+                {anime.status || "Airing"}
+              </span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-white/[0.04]">
+              <span className="text-muted">Episodes</span>
+              <span className="font-medium text-foreground">{anime.totalEpisodes || episodes.length || "TBA"}</span>
+            </div>
+            <div className="flex justify-between py-1">
+              <span className="text-muted">Audio</span>
+              <span className="font-medium text-foreground uppercase">{anime.subOrDub || "Subbed"}</span>
+            </div>
+          </div>
+
+          <div className="w-full">
+            <WatchlistButton
+              id={anime.id}
+              type="anime"
+              title={title}
+              poster={poster}
+              genre={anime.genres?.[0]}
+            />
           </div>
         </div>
 
-        {/* Details Container */}
-        <div className="min-w-0 flex-1 space-y-6">
-          <div className="space-y-2">
-            <p className="text-sm font-bold uppercase tracking-widest text-accent/90">Anime</p>
-            <h1 className="font-display text-4xl font-extrabold leading-tight text-white md:text-5xl lg:text-6xl tracking-tight">
+        {/* Right Column: Title, Metadata, Synopsis, Primary Action */}
+        <div className="space-y-6 md:col-span-8 lg:col-span-9">
+          <div>
+            {anime.otherName && (
+              <p className="text-xs font-medium text-muted/80 mb-1">{anime.otherName}</p>
+            )}
+            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl lg:text-4xl">
               {title}
             </h1>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {anime.genres
-              ?.filter((g) => g.length < 25 && !g.includes(":"))
-              .map((g) => (
-                <span
-                  key={g}
-                  className="rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-semibold text-white/90 backdrop-blur-md transition-colors hover:bg-white/10"
-                >
-                  {g}
-                </span>
-              ))}
-          </div>
+          {/* Genre Tags */}
+          {anime.genres && anime.genres.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {anime.genres
+                .filter((g) => g.length < 30 && !g.includes(":"))
+                .map((g) => (
+                  <span
+                    key={g}
+                    className="rounded bg-surface-2 px-2.5 py-1 text-xs font-medium text-muted border border-white/[0.05]"
+                  >
+                    {g}
+                  </span>
+                ))}
+            </div>
+          )}
 
-          <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-white/70">
-            {anime.type && <span className="bg-surface-2 px-2 py-1 rounded-md">{anime.type}</span>}
-            {anime.status && <span className="flex items-center gap-1.5"><span className={`h-2 w-2 rounded-full ${anime.status.toLowerCase() === 'completed' ? 'bg-green-500' : 'bg-accent'}`}></span>{anime.status}</span>}
-            {anime.totalEpisodes != null && anime.totalEpisodes > 0 && <span>{anime.totalEpisodes} Episodes</span>}
-            {anime.subOrDub && <span className="uppercase border border-white/20 px-2 py-0.5 rounded text-xs">{anime.subOrDub}</span>}
-          </div>
-
-          <div className="prose prose-invert max-w-4xl text-sm leading-8 text-white/80 md:text-base">
-            <p>{synopsis || "No synopsis available for this title."}</p>
-          </div>
-
-          <div className="flex flex-wrap gap-4 pt-4">
+          {/* Watch Now Button */}
+          <div className="flex items-center gap-3 pt-1">
             <Link
               href={animeWatchHref(anime.id)}
-              className="inline-flex items-center justify-center rounded-xl bg-accent px-8 py-3.5 text-sm font-bold uppercase tracking-wide text-white transition-all hover:scale-105 hover:bg-red-600 hover:shadow-[0_0_20px_rgba(220,38,38,0.4)]"
+              className="inline-flex items-center gap-2 rounded-md bg-accent px-6 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-accent-hover"
             >
-              Watch Now
+              <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              <span>Watch Episode 1</span>
             </Link>
           </div>
+
+          {/* Synopsis */}
+          <div className="space-y-2 border-t border-white/[0.06] pt-5">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-muted">Synopsis</h2>
+            <p className="text-sm leading-relaxed text-muted/90 max-w-3xl">
+              {synopsis || "No detailed synopsis available for this title."}
+            </p>
+          </div>
+
+          {/* Official Streams if available */}
+          {anime.alID && <OfficialStreams alId={anime.alID} />}
         </div>
+
       </div>
 
       {/* Episodes Section */}
-      {anime.episodes && anime.episodes.length > 0 && (
-        <div className="mt-20">
-          <div className="mb-8 flex items-center justify-between border-b border-white/10 pb-4">
-            <h2 className="font-display text-2xl font-bold tracking-tight text-white md:text-3xl">
-              Episodes <span className="ml-2 text-lg font-medium text-muted">({anime.episodes.length})</span>
-            </h2>
+      {episodes.length > 0 && (
+        <section className="mt-12 border-t border-white/[0.06] pt-8">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-semibold tracking-tight text-foreground">
+                Episodes
+              </h2>
+              <span className="text-xs text-muted">({episodes.length})</span>
+            </div>
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 max-h-[600px] overflow-y-auto pr-4 custom-scrollbar">
-            {anime.episodes.map((ep) => (
+
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 custom-scrollbar max-h-[500px] overflow-y-auto pr-1">
+            {episodes.map((ep) => (
               <Link
                 key={ep.id}
                 href={animeWatchHref(anime.id, ep.number)}
-                className="group flex items-center gap-4 rounded-xl border border-white/5 bg-surface p-4 transition-all hover:-translate-y-1 hover:border-accent/40 hover:bg-white/5 hover:shadow-lg"
+                className="group flex items-center gap-3 rounded-md border border-white/[0.06] bg-surface p-2.5 transition-colors hover:border-white/[0.18] hover:bg-surface-2"
               >
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-surface-2 font-display text-lg font-bold text-accent transition-colors group-hover:bg-accent group-hover:text-white">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-surface-2 font-mono text-xs font-semibold text-muted group-hover:text-foreground">
                   {ep.number}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-white/90 group-hover:text-white">
+                  <p className="line-clamp-1 text-xs font-medium text-foreground transition-colors group-hover:text-white">
                     {ep.title && ep.title !== `Episode ${ep.number}` ? ep.title : `Episode ${ep.number}`}
                   </p>
-                  <p className="text-xs text-muted mt-1">Subbed</p>
+                  <span className="text-[10px] text-muted">Subbed</span>
                 </div>
-                <svg className="h-5 w-5 shrink-0 text-white/20 transition-colors group-hover:text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <span className="text-xs text-muted opacity-0 transition-opacity group-hover:opacity-100">
+                  ▶
+                </span>
               </Link>
             ))}
           </div>
-        </div>
+        </section>
       )}
+
     </main>
   );
 }

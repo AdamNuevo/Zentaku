@@ -10,9 +10,9 @@ export function dedupeById<T extends { id: string }>(items: T[]): T[] {
   return out;
 }
 
-/** Dedupe list entries that share the same MyAnimeList id (Jikan sometimes returns duplicates). */
-export function dedupeByMalId<T extends { mal_id: number }>(items: T[]): T[] {
-  const seen = new Set<number>();
+/** Dedupe list entries that share the same id (supports both number and string ids). */
+export function dedupeByMalId<T extends { mal_id: number | string }>(items: T[]): T[] {
+  const seen = new Set<number | string>();
   const out: T[] = [];
   for (const item of items) {
     if (seen.has(item.mal_id)) continue;

@@ -1,42 +1,39 @@
-import type { Metadata } from "next";
-import { Bebas_Neue, Outfit, Noto_Sans_JP } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Outfit, Noto_Sans_JP } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 import { BottomNav } from "@/components/BottomNav";
+import { AuthProvider } from "@/lib/auth-context";
+import { ToastProvider } from "@/lib/toast-context";
+import { Toast } from "@/components/Toast";
+import { AuthPromptProvider } from "@/lib/auth-prompt-context";
+import { AuthPromptModal } from "@/components/AuthPromptModal";
 
 const outfit = Outfit({
   variable: "--font-outfit",
   subsets: ["latin"],
-});
-
-const bebas = Bebas_Neue({
-  variable: "--font-bebas",
-  weight: "400",
-  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
 });
 
 const notoJp = Noto_Sans_JP({
   variable: "--font-noto-jp",
-  weight: ["400", "700"],
+  weight: ["400", "500", "700"],
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
   title: {
-    default: "Zentaku — Anime & Manga",
+    default: "Zentaku — Anime & Manga Platform",
     template: "%s | Zentaku",
   },
-  description: "Stream anime and read manga — dark, premium experience powered by live catalog data.",
+  description: "A calm, editorial anime discovery platform and manga reader.",
 };
-
-import type { Viewport } from "next";
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  themeColor: "#000000",
+  maximumScale: 5,
+  themeColor: "#0d0f12",
 };
 
 export default function RootLayout({
@@ -49,15 +46,23 @@ export default function RootLayout({
       lang="en"
       data-scroll-behavior="smooth"
       suppressHydrationWarning
-      className={`${outfit.variable} ${bebas.variable} ${notoJp.variable} h-full antialiased`}
+      className={`${outfit.variable} ${notoJp.variable} h-full antialiased`}
     >
       <body
-        className="min-h-full flex flex-col bg-background text-foreground overflow-x-hidden"
+        className="min-h-full flex flex-col bg-background text-foreground overflow-x-hidden selection:bg-accent/20 selection:text-white"
         suppressHydrationWarning
       >
-        <Navbar />
-        <div className="flex flex-1 flex-col overflow-x-hidden pb-20 md:pb-0">{children}</div>
-        <BottomNav />
+        <AuthProvider>
+          <AuthPromptProvider>
+            <ToastProvider>
+              <Navbar />
+              <div className="flex flex-1 flex-col overflow-x-hidden pb-16 md:pb-0">{children}</div>
+              <BottomNav />
+              <Toast />
+              <AuthPromptModal />
+            </ToastProvider>
+          </AuthPromptProvider>
+        </AuthProvider>
       </body>
     </html>
   );

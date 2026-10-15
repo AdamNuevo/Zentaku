@@ -5,7 +5,7 @@ export type JikanImage = {
 };
 
 export type JikanMangaListEntry = {
-  mal_id: number;
+  mal_id: number | string;
   title: string;
   title_english: string | null;
   images: { jpg: JikanImage; webp: JikanImage };

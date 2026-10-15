@@ -2,7 +2,7 @@ const BASE = "https://api.mangadex.org";
 
 const init: RequestInit & { next?: { revalidate: number } } = {
   next: { revalidate: 120 },
-  headers: { Accept: "application/json" },
+  headers: { Accept: "application/json", "User-Agent": "Zentaku/1.0" },
 };
 
 export class MangaDexError extends Error {
@@ -14,7 +14,7 @@ export class MangaDexError extends Error {
   }
 }
 
-async function mdJson<T>(path: string, retries = 3, delay = 1000): Promise<T> {
+async function mdJson<T>(path: string, retries = 2, delay = 800): Promise<T> {
   const res = await fetch(`${BASE}${path}`, init);
   if (res.status === 429 && retries > 0) {
     await new Promise((resolve) => setTimeout(resolve, delay));
@@ -37,38 +37,122 @@ export type MangaDexChapterSummary = {
 
 function mangaDexTitle(attr: {
   title: Record<string, string> | string | null;
+  altTitles?: Record<string, string>[];
 }): string {
   const t = attr.title;
   if (typeof t === "string") return t;
-  if (!t) return "";
-  return t.en ?? t["ja-ro"] ?? Object.values(t)[0] ?? "";
+  if (t) {
+    const direct = t.en ?? t["ja-ro"] ?? Object.values(t)[0];
+    if (direct) return direct;
+  }
+  if (Array.isArray(attr.altTitles)) {
+    for (const alt of attr.altTitles) {
+      if (alt.en) return alt.en;
+    }
+  }
+  return "Manga Title";
 }
 
 export async function searchMangaByTitle(title: string) {
   const q = encodeURIComponent(title.slice(0, 120));
-  const json = await mdJson<{
-    data: { id: string; attributes: { title: Record<string, string> } }[];
-  }>(`/manga?title=${q}&limit=5&contentRating[]=safe&contentRating[]=suggestive`);
-  return json.data.map((d) => ({
-    id: d.id,
-    title: mangaDexTitle(d.attributes),
-  }));
+  try {
+    const json = await mdJson<{
+      data: { id: string; attributes: { title: Record<string, string>; altTitles?: Record<string, string>[] } }[];
+    }>(`/manga?title=${q}&limit=5&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`);
+    return json.data.map((d) => ({
+      id: d.id,
+      title: mangaDexTitle(d.attributes),
+    }));
+  } catch {
+    return [];
+  }
 }
 
-export async function getMangaChapters(mangaDexMangaId: string, limit = 100) {
-  const json = await mdJson<{
-    data: MangaDexChapterSummary[];
-  }>(
-    `/manga/${mangaDexMangaId}/feed?limit=${limit}&translatedLanguage[]=en&order[chapter]=asc&order[volume]=asc`,
-  );
-  return json.data;
+// Fallback provider via @consumet/extensions (MangaPill) to fetch complete 1000+ chapter archives
+async function getMangaPillChapters(title: string): Promise<MangaDexChapterSummary[]> {
+  try {
+    const { MANGA } = await import("@consumet/extensions");
+    const mp = new MANGA.MangaPill();
+    const searchRes = await mp.search(title);
+    if (!searchRes?.results?.length) return [];
+
+    // Find best match
+    const targetTitle = title.toLowerCase().trim();
+    const match =
+      searchRes.results.find((r) => {
+        const raw = typeof r.title === "string" ? r.title : String(r.title ?? "");
+        return raw.toLowerCase().trim() === targetTitle;
+      }) || searchRes.results[0];
+
+    const info = await mp.fetchMangaInfo(match.id);
+    if (!info?.chapters?.length) return [];
+
+    return info.chapters.map((c) => {
+      const chNum = c.chapter != null ? String(c.chapter) : null;
+      const chTitle = c.title != null ? String(c.title) : `Chapter ${chNum ?? ""}`;
+      return {
+        id: `mp__${encodeURIComponent(c.id)}`,
+        attributes: {
+          chapter: chNum,
+          title: chTitle,
+          pages: 0,
+        },
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function getMangaChapters(
+  mangaDexMangaId?: string | null,
+  limit = 500,
+  mangaTitle?: string,
+): Promise<MangaDexChapterSummary[]> {
+  let mdChapters: MangaDexChapterSummary[] = [];
+
+  if (mangaDexMangaId) {
+    try {
+      const json = await mdJson<{
+        data: MangaDexChapterSummary[];
+      }>(
+        `/manga/${mangaDexMangaId}/feed?limit=${limit}&translatedLanguage[]=en&order[chapter]=asc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&includeExternalUrl=0`,
+      );
+      mdChapters = json.data || [];
+    } catch {
+      mdChapters = [];
+    }
+  }
+
+  // Deduplicate MangaDex chapters that have the exact same chapter number
+  const seenChapters = new Set<string>();
+  const deduped: MangaDexChapterSummary[] = [];
+  for (const c of mdChapters) {
+    const key = c.attributes.chapter ? `ch-${c.attributes.chapter}` : c.id;
+    if (seenChapters.has(key)) continue;
+    seenChapters.add(key);
+    deduped.push(c);
+  }
+
+  // If MangaDex has fewer than 25 chapters (common for licensed manga where publishers DMCA chapters 4-1000)
+  // or if MangaDex ID was null, fetch complete scanlation chapters from MangaPill!
+  if (mangaTitle && (deduped.length < 25 || !mangaDexMangaId)) {
+    const pillChapters = await getMangaPillChapters(mangaTitle);
+    if (pillChapters.length > deduped.length) {
+      return pillChapters;
+    }
+  }
+
+  return deduped;
 }
 
 export async function getAdjacentChapterIds(
-  mangaDexMangaId: string,
-  currentChapterId: string,
+  mangaDexMangaId?: string | null,
+  currentChapterId?: string,
+  mangaTitle?: string,
 ) {
-  const chapters = await getMangaChapters(mangaDexMangaId, 500);
+  if (!currentChapterId) return { prev: null as string | null, next: null as string | null };
+  const chapters = await getMangaChapters(mangaDexMangaId, 500, mangaTitle);
   const idx = chapters.findIndex((c) => c.id === currentChapterId);
   if (idx === -1) return { prev: null as string | null, next: null as string | null };
   return {
@@ -83,6 +167,19 @@ export type ChapterPageUrls = {
 };
 
 export async function getChapterPageUrls(chapterId: string): Promise<ChapterPageUrls> {
+  // Check if it's a MangaPill provider chapter
+  if (chapterId.startsWith("mp__")) {
+    const realId = decodeURIComponent(chapterId.replace("mp__", ""));
+    const { MANGA } = await import("@consumet/extensions");
+    const mp = new MANGA.MangaPill();
+    const pages = await mp.fetchChapterPages(realId);
+    return {
+      urls: pages.map((p) => p.img),
+      chapterTitle: `Chapter ${realId.split("chapter-")[1] || ""}`,
+    };
+  }
+
+  // Standard MangaDex chapter lookup
   const [chapterRes, serverRes] = await Promise.all([
     fetch(`${BASE}/chapter/${chapterId}?includes[]=scanlation_group`, {
       ...init,

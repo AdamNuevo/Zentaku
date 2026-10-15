@@ -4,173 +4,316 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { isNavLinkActive } from "@/lib/nav-active";
+import { useWatchlist, useCustomAvatar } from "@/lib/storage";
+import { useAuth } from "@/lib/auth-context";
 
-const links = [
+const navLinks = [
   { href: "/", label: "Home" },
   { href: "/browse?type=anime", label: "Anime" },
+  { href: "/movies", label: "Movies" },
+  { href: "/tv", label: "TV Series" },
   { href: "/browse?type=manga", label: "Manga" },
-  { href: "/browse?sort=popular", label: "Popular" },
-  { href: "/forums", label: "Forums" },
+  { href: "/browse", label: "Catalog" },
 ];
 
 function NavbarInner() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [q, setQ] = useState("");
   const [searchType, setSearchType] = useState("anime");
+  const watchlist = useWatchlist();
+  const customAvatar = useCustomAvatar();
+  const watchlistCount = watchlist.length;
+  const { user, signOutUser } = useAuth();
+  const displayPhoto = user?.photoURL || customAvatar;
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/[0.04]">
-      <div className="glass absolute inset-0 -z-10 bg-black/60 backdrop-blur-xl" />
-      <nav className="mx-auto flex max-w-[1400px] items-center gap-6 px-4 py-3 lg:px-8">
-        <Link
-          href="/"
-          className="group flex shrink-0 items-center drop-shadow-[0_0_15px_rgba(255,26,26,0.3)] transition-transform hover:scale-105"
-          onClick={() => setOpen(false)}
-        >
-          {/* Must be root-relative: files in `public/` are served from `/`, not `/public/`. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/Images/Zentakuu.png"
-            alt="Zentaku"
-            width={220}
-            height={72}
-            decoding="async"
-            fetchPriority="high"
-            className="h-10 w-auto max-w-[min(100%,220px)] object-contain object-left transition-opacity duration-200 group-hover:opacity-100 opacity-95 md:h-11"
-          />
-        </Link>
+    <header className="sticky top-0 z-40 w-full border-b border-white/[0.07] bg-[#0d0f12]/95 backdrop-blur-md">
+      <div className="mx-auto flex h-14 max-w-[1400px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
 
-        <ul className="hidden items-center gap-1 md:flex tracking-wide">
-          {links.map(({ href, label }) => {
-            const active = isNavLinkActive(pathname, searchParams, href);
-            return (
-              <li key={href}>
+        {/* Left: Brand + Main Nav */}
+        <div className="flex items-center gap-8">
+          <Link
+            href="/"
+            className="group flex items-center gap-2 text-decoration-none"
+            onClick={() => setOpen(false)}
+          >
+            <span className="text-lg font-bold tracking-wider text-foreground transition-colors group-hover:text-white">
+              ZENTAKU
+            </span>
+            <span className="hidden text-[10px] tracking-widest text-muted/60 sm:inline-block font-sans">
+              全択
+            </span>
+          </Link>
+
+          <nav className="hidden md:flex items-center gap-1">
+            {navLinks.map(({ href, label }) => {
+              const active = isNavLinkActive(pathname, searchParams, href);
+              return (
                 <Link
+                  key={href}
                   href={href}
-                  className={`relative rounded-xl px-4 py-2.5 text-sm font-bold uppercase transition-all duration-300 hover:text-white ${
-                    active ? "text-white" : "text-white/50"
-                  }`}
+                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${active
+                      ? "text-white bg-white/[0.07]"
+                      : "text-muted hover:text-foreground hover:bg-white/[0.03]"
+                    }`}
                 >
                   {label}
-                  {active && <span className="absolute bottom-1 left-4 right-4 h-[2px] bg-accent rounded-full shadow-[0_0_8px_rgba(255,26,26,0.8)]" />}
                 </Link>
-              </li>
-            );
-          })}
-        </ul>
+              );
+            })}
+          </nav>
+        </div>
 
+        {/* Center/Right: Compact Search Bar */}
         <form
           action="/browse"
-          className="ml-auto hidden min-w-0 flex-1 max-w-md items-center gap-2 md:flex"
+          className="hidden max-w-sm flex-1 items-center md:flex"
         >
-          <div className="relative flex w-full items-center rounded-full border border-white/10 bg-white/5 transition-all duration-300 focus-within:border-accent/40 focus-within:bg-black/60 focus-within:ring-4 focus-within:ring-accent/10 focus-within:shadow-[0_0_20px_rgba(255,26,26,0.15)] group">
+          <div className="flex w-full items-center rounded-md border border-white/[0.08] bg-surface px-2.5 py-1 text-xs transition-colors focus-within:border-white/[0.2]">
             <select
               name="type"
               value={searchType}
               onChange={(e) => setSearchType(e.target.value)}
-              className="appearance-none bg-transparent pl-4 pr-2 py-2.5 text-sm font-semibold text-white/70 outline-none hover:text-white transition-colors cursor-pointer border-none focus:ring-0"
+              className="bg-transparent pr-2 text-muted font-medium outline-none cursor-pointer border-r border-white/[0.08]"
             >
-              <option value="anime" className="bg-black text-white">Anime</option>
-              <option value="manga" className="bg-black text-white">Manga</option>
+              <option value="anime" className="bg-[#14171c] text-white">Anime</option>
+              <option value="manga" className="bg-[#14171c] text-white">Manga</option>
+              <option value="manhwa" className="bg-[#14171c] text-white">Manhwa</option>
+              <option value="manhua" className="bg-[#14171c] text-white">Manhua</option>
             </select>
-            <div className="h-4 w-px bg-white/20 mx-1 shrink-0" />
             <input
               name="q"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder={`Search ${searchType}...`}
-              className="w-full bg-transparent py-2.5 pl-2 pr-5 text-sm text-white outline-none placeholder:text-white/40"
+              className="w-full bg-transparent px-2 text-xs text-foreground placeholder:text-muted/60 outline-none"
             />
-            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-white/40 group-focus-within:text-accent">
-              <SearchIcon className="h-4 w-4" />
-            </span>
+            <button type="submit" aria-label="Submit search" className="text-muted/60 hover:text-foreground">
+              <SearchIcon className="h-3.5 w-3.5" />
+            </button>
           </div>
         </form>
 
-        <div className="hidden items-center gap-3 md:flex">
+        {/* Right Actions: Watchlist & Profile/Login */}
+        <div className="hidden md:flex items-center gap-3">
           <Link
-            href="/signup"
-            className="rounded-full border border-white/10 bg-white/5 backdrop-blur-sm px-6 py-2.5 text-sm font-bold uppercase tracking-wider text-white transition-all duration-300 hover:scale-105 hover:bg-white/10 hover:border-white/30"
+            href="/watchlist"
+            className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-muted transition-colors hover:text-foreground hover:bg-white/[0.04]"
           >
-            Sign Up
+            <BookmarkIcon className="h-3.5 w-3.5" />
+            <span>Watchlist</span>
+            {watchlistCount > 0 && (
+              <span className="ml-0.5 rounded-full bg-accent/20 px-1.5 py-0.2 text-[10px] font-semibold text-accent">
+                {watchlistCount}
+              </span>
+            )}
           </Link>
-          <Link
-            href="/login"
-            className="rounded-full bg-accent px-6 py-2.5 text-sm font-bold uppercase tracking-wider text-white shadow-[0_4px_14px_0_rgba(255,26,26,0.39)] transition-all duration-300 hover:scale-105 hover:bg-red-600 hover:shadow-[0_6px_20px_rgba(255,26,26,0.5)]"
-          >
-            Login
-          </Link>
+
+          {user ? (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setProfileOpen((v) => !v)}
+                className="flex items-center gap-2 rounded-full border border-white/[0.1] bg-surface-2 p-1 pr-2.5 text-xs text-foreground transition-colors hover:border-white/[0.2]"
+              >
+                {displayPhoto ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={displayPhoto}
+                    alt=""
+                    className="h-6 w-6 rounded-full object-cover [image-rendering:pixelated]"
+                  />
+                ) : (
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent text-[11px] font-bold text-white">
+                    {(user.displayName || user.email || "U")[0].toUpperCase()}
+                  </div>
+                )}
+                <span className="max-w-[100px] truncate text-[11px] font-medium">
+                  {user.displayName || user.email?.split("@")[0]}
+                </span>
+                <svg className="h-3 w-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {profileOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setProfileOpen(false)}
+                  />
+                  <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-lg border border-white/[0.08] bg-surface p-1.5 shadow-xl">
+                    <div className="border-b border-white/[0.06] px-3 py-2">
+                      <p className="truncate text-xs font-semibold text-foreground">
+                        {user.displayName || "User"}
+                      </p>
+                      <p className="truncate text-[10px] text-muted">{user.email}</p>
+                    </div>
+                    <Link
+                      href="/profile"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center rounded-md px-3 py-2 text-xs text-muted transition-colors hover:bg-white/[0.04] hover:text-foreground"
+                    >
+                      My Profile
+                    </Link>
+                    <Link
+                      href="/watchlist"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center justify-between rounded-md px-3 py-2 text-xs text-muted transition-colors hover:bg-white/[0.04] hover:text-foreground"
+                    >
+                      <span>Watchlist</span>
+                      {watchlistCount > 0 && (
+                        <span className="rounded-full bg-accent/20 px-1.5 py-0.2 text-[10px] font-semibold text-accent">
+                          {watchlistCount}
+                        </span>
+                      )}
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProfileOpen(false);
+                        signOutUser();
+                      }}
+                      className="w-full text-left rounded-md px-3 py-2 text-xs text-rose-400 transition-colors hover:bg-rose-500/10"
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <Link
+              href={`/login?returnTo=${encodeURIComponent(pathname)}`}
+              className="rounded-md border border-white/[0.1] px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-white/[0.05] hover:text-white"
+            >
+              Sign in
+            </Link>
+          )}
         </div>
 
-        <button
-          type="button"
-          className="ml-auto rounded-full bg-white/5 p-2.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white md:hidden"
-          aria-label="Menu"
-          onClick={() => setOpen((v) => !v)}
-        >
-          <MenuIcon className="h-6 w-6" />
-        </button>
-      </nav>
+        {/* Mobile controls */}
+        <div className="flex items-center gap-2 md:hidden">
+          <Link
+            href="/browse"
+            className="rounded-md p-1.5 text-muted hover:text-foreground"
+            aria-label="Search"
+          >
+            <SearchIcon className="h-4 w-4" />
+          </Link>
+          <button
+            type="button"
+            className="rounded-md p-1.5 text-muted hover:text-foreground"
+            aria-label="Toggle Menu"
+            onClick={() => setOpen((v) => !v)}
+          >
+            {open ? <CloseIcon className="h-5 w-5" /> : <MenuIcon className="h-5 w-5" />}
+          </button>
+        </div>
+      </div>
 
+      {/* Mobile Drawer */}
       {open && (
-        <div className="absolute top-full left-0 right-0 border-b border-white/10 bg-black/95 px-4 py-6 backdrop-blur-xl md:hidden shadow-2xl animate-fade-up">
-          <form action="/browse" className="mb-6 flex gap-2">
+        <div className="border-b border-white/[0.08] bg-[#0d0f12] px-4 py-4 md:hidden">
+          <form action="/browse" className="mb-4 flex items-center rounded-md border border-white/[0.08] bg-surface px-3 py-2 text-xs">
             <select
               name="type"
               value={searchType}
               onChange={(e) => setSearchType(e.target.value)}
-              className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm text-white outline-none appearance-none"
+              className="bg-transparent pr-2 text-muted font-medium outline-none cursor-pointer border-r border-white/[0.08]"
             >
-              <option value="anime">Anime</option>
-              <option value="manga">Manga</option>
+              <option value="anime" className="bg-[#14171c] text-white">Anime</option>
+              <option value="manga" className="bg-[#14171c] text-white">Manga</option>
+              <option value="manhwa" className="bg-[#14171c] text-white">Manhwa</option>
+              <option value="manhua" className="bg-[#14171c] text-white">Manhua</option>
             </select>
-            <div className="relative w-full">
-              <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/40">
-                <SearchIcon className="h-4 w-4" />
-              </span>
-              <input
-                name="q"
-                placeholder={`Search ${searchType}...`}
-                className="w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-white outline-none transition-all focus:border-accent/40 focus:bg-white/10"
-              />
-            </div>
+            <input
+              name="q"
+              placeholder={`Search ${searchType}...`}
+              className="w-full bg-transparent px-2 text-xs text-foreground placeholder:text-muted/60 outline-none"
+            />
           </form>
-          <ul className="flex flex-col gap-2">
-            {links.map(({ href, label }) => {
+
+          <nav className="flex flex-col gap-1">
+            {navLinks.map(({ href, label }) => {
               const active = isNavLinkActive(pathname, searchParams, href);
               return (
-                <li key={href}>
-                  <Link
-                    href={href}
-                    className={`block rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider transition-all ${
-                      active ? "bg-accent/10 text-accent" : "text-white/70 hover:bg-white/5 hover:text-white"
+                <Link
+                  key={href}
+                  href={href}
+                  className={`rounded-md px-3 py-2 text-sm font-medium ${active ? "bg-white/[0.08] text-white" : "text-muted hover:text-foreground"
                     }`}
-                    onClick={() => setOpen(false)}
-                  >
-                    {label}
-                  </Link>
-                </li>
+                  onClick={() => setOpen(false)}
+                >
+                  {label}
+                </Link>
               );
             })}
-          </ul>
-          <div className="mt-6 flex flex-col gap-3">
             <Link
-              href="/signup"
-              className="w-full rounded-full border border-white/10 bg-white/5 py-3.5 text-center text-sm font-bold uppercase tracking-wider text-white transition-all hover:bg-white/10"
+              href="/watchlist"
+              className="flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium text-muted hover:text-foreground"
               onClick={() => setOpen(false)}
             >
-              Sign Up
+              <span>Watchlist</span>
+              {watchlistCount > 0 && (
+                <span className="rounded-full bg-accent/20 px-2 py-0.5 text-xs text-accent">
+                  {watchlistCount}
+                </span>
+              )}
             </Link>
-            <Link
-              href="/login"
-              className="w-full rounded-full bg-accent py-3.5 text-center text-sm font-bold uppercase tracking-wider text-white shadow-lg transition-all hover:bg-red-600"
-              onClick={() => setOpen(false)}
-            >
-              Login
-            </Link>
-          </div>
+            {user ? (
+              <div className="mt-3 border-t border-white/[0.08] pt-3">
+                <div className="mb-3 flex items-center gap-2.5 px-3">
+                  {displayPhoto ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={displayPhoto}
+                      alt=""
+                      className="h-8 w-8 rounded-full border border-white/20 object-cover [image-rendering:pixelated]"
+                    />
+                  ) : (
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-xs font-bold text-white">
+                      {(user.displayName || user.email || "U")[0].toUpperCase()}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-semibold text-foreground">
+                      {user.displayName || "User"}
+                    </p>
+                    <p className="truncate text-[10px] text-muted">{user.email}</p>
+                  </div>
+                </div>
+                <Link
+                  href="/profile"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center rounded-md px-3 py-2 text-sm font-medium text-muted hover:text-foreground"
+                >
+                  My Profile
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    signOutUser();
+                  }}
+                  className="w-full rounded-md border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-center text-xs font-medium text-rose-300 hover:bg-rose-500/20"
+                >
+                  Sign out
+                </button>
+              </div>
+            ) : (
+              <Link
+                href={`/login?returnTo=${encodeURIComponent(pathname)}`}
+                className="mt-2 rounded-md border border-white/[0.1] px-3 py-2 text-center text-sm font-medium text-foreground hover:bg-white/[0.04]"
+                onClick={() => setOpen(false)}
+              >
+                Sign in
+              </Link>
+            )}
+          </nav>
         </div>
       )}
     </header>
@@ -185,12 +328,12 @@ export function Navbar() {
   );
 }
 
-
 function NavbarFallbackShell() {
   return (
-    <header className="sticky top-0 z-50 border-b border-white/[0.06]">
-      <div className="glass absolute inset-0 -z-10" />
-      <nav className="mx-auto flex h-[52px] max-w-[1400px] items-center px-4 md:h-[56px] lg:px-8" />
+    <header className="sticky top-0 z-40 w-full border-b border-white/[0.07] bg-[#0d0f12]">
+      <div className="mx-auto flex h-14 max-w-[1400px] items-center justify-between px-4 sm:px-6 lg:px-8">
+        <span className="text-lg font-bold tracking-wider text-foreground">ZENTAKU</span>
+      </div>
     </header>
   );
 }
@@ -198,12 +341,15 @@ function NavbarFallbackShell() {
 function SearchIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-      />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    </svg>
+  );
+}
+
+function BookmarkIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
     </svg>
   );
 }
@@ -212,6 +358,14 @@ function MenuIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  );
+}
+
+function CloseIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
     </svg>
   );
 }

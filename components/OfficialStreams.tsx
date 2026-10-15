@@ -1,5 +1,16 @@
 import React from "react";
 
+type StreamingEpisode = {
+  title?: string;
+  site?: string;
+  url?: string;
+};
+
+type ExternalLink = {
+  site?: string;
+  url?: string;
+};
+
 export async function OfficialStreams({ alId }: { alId: number }) {
   const query = `
     query ($id: Int) {
@@ -31,18 +42,17 @@ export async function OfficialStreams({ alId }: { alId: number }) {
       next: { revalidate: 3600 },
     });
     const json = await res.json();
-    const streamingEpisodes = json?.data?.Media?.streamingEpisodes || [];
-    const externalLinks = json?.data?.Media?.externalLinks || [];
+    const streamingEpisodes: StreamingEpisode[] = json?.data?.Media?.streamingEpisodes || [];
+    const externalLinks: ExternalLink[] = json?.data?.Media?.externalLinks || [];
 
     // Deduplicate sites
     const sites = new Map<string, string>();
-    streamingEpisodes.forEach((ep: any) => {
+    streamingEpisodes.forEach((ep) => {
       if (ep.site && ep.url && !sites.has(ep.site)) {
         sites.set(ep.site, ep.url);
       }
     });
-    externalLinks.forEach((link: any) => {
-      // sites like Crunchyroll, Hulu, Netflix
+    externalLinks.forEach((link) => {
       const validSites = ["Crunchyroll", "Hulu", "Netflix", "Amazon", "Funimation", "Tubi TV"];
       if (link.site && link.url && validSites.includes(link.site) && !sites.has(link.site)) {
         sites.set(link.site, link.url);
@@ -52,12 +62,12 @@ export async function OfficialStreams({ alId }: { alId: number }) {
     if (sites.size === 0) return null;
 
     return (
-      <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-4">
-        <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-white/70">
-          Official Streams
+      <div className="mt-4 rounded-xl border border-white/[0.08] bg-surface p-4">
+        <h3 className="mb-1 text-xs font-bold uppercase tracking-wider text-muted">
+          Official Platforms
         </h3>
-        <p className="mb-4 text-xs text-white/50">
-          If internal stream lookup failed, support the creators by watching on official platforms:
+        <p className="mb-3 text-xs text-muted/70">
+          Support the original creators and studio via licensed streaming providers:
         </p>
         <div className="flex flex-wrap gap-2">
           {Array.from(sites.entries()).map(([site, url]) => (
@@ -66,15 +76,16 @@ export async function OfficialStreams({ alId }: { alId: number }) {
               href={url}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-lg bg-accent/20 px-4 py-2 text-sm font-bold text-accent hover:bg-accent hover:text-white transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-surface-2 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-white/[0.2] hover:text-white"
             >
-              {site}
+              <span>{site}</span>
+              <span className="text-muted/60 text-[10px]">↗</span>
             </a>
           ))}
         </div>
       </div>
     );
-  } catch (e) {
+  } catch {
     return null;
   }
 }

@@ -1,95 +1,88 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRef } from "react";
 import type { AnimeKaiListItem } from "@/lib/animekai";
-import { animeDetailHref, animeWatchHref } from "@/lib/anime-path";
-import { streamingPosterUnoptimized } from "@/lib/image-url";
+import { animeDetailHref } from "@/lib/anime-path";
+import { MediaCard } from "./MediaCard";
 
 type Props = {
   items: AnimeKaiListItem[];
+  title?: string;
+  viewAllHref?: string;
 };
 
-export function FeaturedCarousel({ items }: Props) {
+export function FeaturedCarousel({
+  items,
+  title = "Trending Releases",
+  viewAllHref = "/browse?type=anime",
+}: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scroll = (dir: -1 | 1) => {
     const el = scrollRef.current;
     if (!el) return;
-    el.scrollBy({ left: dir * (el.clientWidth * 0.85), behavior: "smooth" });
+    el.scrollBy({ left: dir * (el.clientWidth * 0.75), behavior: "smooth" });
   };
 
   if (!items || items.length === 0) return null;
 
   return (
-    <section className="space-y-4 w-full relative">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-display tracking-wide font-semibold text-muted md:text-xl">Featured Series</h2>
-        <div className="hidden gap-3 sm:flex">
-          <button
-            type="button"
-            onClick={() => scroll(-1)}
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 backdrop-blur-md transition-all duration-300 hover:scale-110 hover:border-accent/40 hover:bg-white/10 hover:text-white hover:shadow-[0_0_15px_rgba(255,26,26,0.3)]"
-            aria-label="Previous"
+    <section className="space-y-3.5">
+      <div className="flex items-center justify-between border-b border-white/[0.06] pb-2.5">
+        <div className="flex items-center gap-2">
+          <h2 className="text-base font-semibold tracking-tight text-foreground sm:text-lg">
+            {title}
+          </h2>
+          <span className="text-xs text-muted font-normal">({items.length})</span>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Link
+            href={viewAllHref}
+            className="text-xs font-medium text-muted transition-colors hover:text-foreground"
           >
-            ←
-          </button>
-          <button
-            type="button"
-            onClick={() => scroll(1)}
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 backdrop-blur-md transition-all duration-300 hover:scale-110 hover:border-accent/40 hover:bg-white/10 hover:text-white hover:shadow-[0_0_15px_rgba(255,26,26,0.3)]"
-            aria-label="Next"
-          >
-            →
-          </button>
+            Browse all →
+          </Link>
+
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => scroll(-1)}
+              className="flex h-7 w-7 items-center justify-center rounded-md border border-white/[0.1] bg-surface-2/60 text-xs text-muted transition-colors hover:border-white/[0.2] hover:text-foreground active:scale-95"
+              aria-label="Previous items"
+            >
+              ←
+            </button>
+            <button
+              type="button"
+              onClick={() => scroll(1)}
+              className="flex h-7 w-7 items-center justify-center rounded-md border border-white/[0.1] bg-surface-2/60 text-xs text-muted transition-colors hover:border-white/[0.2] hover:text-foreground active:scale-95"
+              aria-label="Next items"
+            >
+              →
+            </button>
+          </div>
         </div>
       </div>
 
       <div
         ref={scrollRef}
-        className="scrollbar-hide flex snap-x snap-mandatory gap-4 overflow-x-auto pb-6 pt-2 -mx-4 px-4 lg:-mx-0 lg:px-0"
+        className="scrollbar-hide -mx-4 flex gap-3.5 overflow-x-auto px-4 pb-2 sm:-mx-0 sm:px-0"
       >
-        {items.map((anime) => {
-          const src = anime.image?.trim() ?? "";
-          const title = anime.title;
-          return (
-              <article
-                key={anime.id}
-                className="group relative w-[260px] sm:w-[280px] md:w-[320px] shrink-0 snap-start overflow-hidden rounded-3xl border border-white/5 bg-surface transition-all duration-300 hover:-translate-y-2 hover:border-accent/30 hover:shadow-[0_10px_40px_-10px_rgba(255,26,26,0.5)]"
-              >
-                <div className="relative aspect-[16/10]">
-                  <Link href={animeDetailHref(anime.id)} className="relative block h-full w-full">
-                    {src ? (
-                      <Image
-                        src={src}
-                        alt={title}
-                        fill
-                        className="object-cover transition-transform duration-500 ease-out group-hover:scale-110"
-                        sizes="(max-width:768px) 88vw, 360px"
-                        unoptimized={streamingPosterUnoptimized(src)}
-                      />
-                    ) : (
-                      <div className="h-full min-h-[200px] w-full bg-surface-2" />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-95 transition-opacity duration-300 group-hover:opacity-80" />
-                    <div className="absolute bottom-0 left-0 right-0 p-5">
-                      <h3 className="line-clamp-2 text-lg font-extrabold tracking-tight text-white md:text-xl drop-shadow-md transition-transform duration-300 group-hover:-translate-y-2">{title}</h3>
-                    </div>
-                  </Link>
-
-                  <Link
-                    href={animeWatchHref(anime.id)}
-                    className="absolute inset-0 z-20 flex items-center justify-center opacity-0 backdrop-blur-sm bg-black/40 transition-all duration-300 group-hover:opacity-100"
-                  >
-                    <span className="rounded-full bg-accent px-8 py-3 text-sm font-bold uppercase tracking-wider text-white shadow-xl transition-transform hover:scale-110 hover:bg-red-600">
-                      Watch Now
-                    </span>
-                  </Link>
-                </div>
-              </article>
-          );
-        })}
+        {items.map((anime, idx) => (
+          <div key={anime.id} className="w-[140px] shrink-0 sm:w-[160px] md:w-[170px]">
+            <MediaCard
+              href={animeDetailHref(anime.id)}
+              image={anime.image}
+              title={anime.title}
+              badge="TV"
+              type="Anime"
+              priority={idx < 4}
+              loading={idx < 4 ? "eager" : "lazy"}
+            />
+          </div>
+        ))}
       </div>
     </section>
   );

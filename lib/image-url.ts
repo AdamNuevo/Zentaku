@@ -27,6 +27,8 @@ export function malImageShouldSkipOptimization(url: string): boolean {
 
 /** Remote catalog posters (e.g. AnimeKai) — optimize on the edge can fail for arbitrary CDNs. */
 export function streamingPosterUnoptimized(url: string): boolean {
+  if (!url) return true;
+  if (url.startsWith("/api/anime-image")) return true;
   return /^https?:\/\//i.test(url);
 }
 

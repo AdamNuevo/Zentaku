@@ -14,7 +14,7 @@ type Props = {
 
 export async function generateMetadata({ params }: Props) {
   const { chapterId } = await params;
-  return { title: `Chapter ${chapterId.slice(0, 8)}…` };
+  return { title: `Reader · Chapter ${chapterId.slice(0, 8)} — Zentaku` };
 }
 
 export default async function MangaReaderPage({ params, searchParams }: Props) {
@@ -29,7 +29,7 @@ export default async function MangaReaderPage({ params, searchParams }: Props) {
     pages = await getChapterPageUrls(chapterId);
   } catch (err) {
     if (err instanceof MangaDexError && err.status === 404) notFound();
-    const message = err instanceof MangaDexError ? err.message : "Failed to load chapter.";
+    const message = err instanceof MangaDexError ? err.message : "Unable to load chapter pages.";
     const status = err instanceof MangaDexError ? err.status : undefined;
     return (
       <div className="mx-auto max-w-lg px-4 py-16">
@@ -46,47 +46,57 @@ export default async function MangaReaderPage({ params, searchParams }: Props) {
       prev = adj.prev;
       next = adj.next;
     } catch {
-      /* ignore nav errors */
+      // ignore adjacent navigation errors
     }
   }
 
   const q = mdMangaId ? `?md=${encodeURIComponent(mdMangaId)}` : "";
 
   return (
-    <div className="min-h-screen bg-[#050505]">
-      <header className="sticky top-16 z-30 border-b border-white/10 bg-black/85 backdrop-blur-xl md:top-[4.25rem]">
-        <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+    <div className="min-h-screen bg-[#090a0c]">
+      
+      {/* Sticky Minimal Reader Header */}
+      <header className="sticky top-0 z-30 border-b border-white/[0.08] bg-[#0d0f12]/95 backdrop-blur-md">
+        <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-4 py-2.5">
           <Link
-            href="/browse?type=manga"
-            className="text-sm font-semibold text-muted transition-smooth hover:text-accent"
+            href={mdMangaId ? `/browse?type=manga` : "/browse?type=manga"}
+            className="text-xs font-medium text-muted transition-colors hover:text-foreground"
           >
-            ← Library
+            ← Back
           </Link>
-          <h1 className="max-w-[min(100%,280px)] truncate text-center text-sm font-semibold text-foreground">
-            {pages.chapterTitle ?? "Reader"}
-          </h1>
-          <div className="flex gap-2">
+
+          <div className="text-center min-w-0">
+            <h1 className="line-clamp-1 text-xs font-semibold text-foreground sm:text-sm">
+              {pages.chapterTitle ?? "Manga Reader"}
+            </h1>
+            <span className="text-[10px] text-muted">
+              {pages.urls.length} pages loaded
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
             {prev ? (
               <Link
                 href={`/read/${prev}${q}`}
-                className="rounded-xl border border-white/15 px-3 py-1.5 text-xs font-semibold transition-smooth hover:border-accent/40"
+                className="rounded border border-white/[0.1] bg-surface-2 px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:border-white/[0.2]"
               >
                 Prev
               </Link>
             ) : (
-              <span className="rounded-xl border border-white/5 px-3 py-1.5 text-xs text-muted/50">
+              <span className="rounded border border-white/[0.04] px-2.5 py-1 text-xs text-muted/40 cursor-not-allowed">
                 Prev
               </span>
             )}
+
             {next ? (
               <Link
                 href={`/read/${next}${q}`}
-                className="rounded-xl bg-accent px-3 py-1.5 text-xs font-semibold text-white transition-smooth hover:bg-red-600"
+                className="rounded bg-accent px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-accent-hover"
               >
                 Next
               </Link>
             ) : (
-              <span className="rounded-xl border border-white/5 px-3 py-1.5 text-xs text-muted/50">
+              <span className="rounded border border-white/[0.04] px-2.5 py-1 text-xs text-muted/40 cursor-not-allowed">
                 Next
               </span>
             )}
@@ -94,8 +104,9 @@ export default async function MangaReaderPage({ params, searchParams }: Props) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-2 py-6 sm:px-4">
-        <div className="space-y-0 rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
+      {/* Reader Canvas */}
+      <main className="mx-auto max-w-3xl px-2 py-4 sm:px-4">
+        <div className="flex flex-col items-center bg-[#07080a] shadow-xl">
           {pages.urls.map((url, i) => (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -103,29 +114,40 @@ export default async function MangaReaderPage({ params, searchParams }: Props) {
               src={url}
               alt={`Page ${i + 1}`}
               className="block w-full h-auto"
-              loading={i < 2 ? "eager" : "lazy"}
+              loading={i < 3 ? "eager" : "lazy"}
             />
           ))}
         </div>
-        <div className="mt-8 flex justify-center gap-3 pb-24">
-          {prev && (
-            <Link
-              href={`/read/${prev}${q}`}
-              className="rounded-xl border border-white/15 px-6 py-2 text-sm font-semibold transition-smooth hover:border-accent/40"
-            >
-              Previous chapter
-            </Link>
-          )}
-          {next && (
-            <Link
-              href={`/read/${next}${q}`}
-              className="rounded-xl bg-accent px-6 py-2 text-sm font-semibold text-white glow-red hover:bg-red-600"
-            >
-              Next chapter
-            </Link>
-          )}
+
+        {/* Bottom Navigation */}
+        <div className="my-8 flex flex-col items-center justify-center gap-3 border-t border-white/[0.08] pt-6 pb-20">
+          <div className="flex items-center gap-3">
+            {prev && (
+              <Link
+                href={`/read/${prev}${q}`}
+                className="rounded-md border border-white/[0.12] bg-surface px-4 py-2 text-xs font-medium text-foreground transition-colors hover:border-white/[0.2]"
+              >
+                ← Previous Chapter
+              </Link>
+            )}
+            {next && (
+              <Link
+                href={`/read/${next}${q}`}
+                className="rounded-md bg-accent px-5 py-2 text-xs font-semibold text-white transition-colors hover:bg-accent-hover"
+              >
+                Next Chapter →
+              </Link>
+            )}
+          </div>
+          <Link
+            href="/browse?type=manga"
+            className="text-xs text-muted hover:text-foreground mt-2"
+          >
+            Return to Manga Catalog
+          </Link>
         </div>
       </main>
+
     </div>
   );
 }
